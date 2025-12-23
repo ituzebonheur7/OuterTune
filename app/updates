@@ -1,0 +1,98 @@
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+
+data class Release(
+    val tag_name: String,
+    val body: String?,
+    val assets: List<Asset>
+)
+
+data class Asset(
+    val browser_download_url: String,
+    val name: String
+)
+
+fun main() {
+    val versionFile = File("app/update")
+    val localVersion = if (versionFile.exists()) {
+        versionFile.readText().trim()
+    } else {
+        "0.0.0"
+    }
+
+    println("Current version: $localVersion")
+
+    val apiUrl = "https://api.github.com/repos/OuterTune/OuterTune/releases/latest"
+    val connection = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
+        requestMethod = "GET"
+        connectTimeout = 5000
+        readTimeout = 5000
+        setRequestProperty("Accept", "application/vnd.github.v3+json")
+    }
+
+    if (connection.responseCode != 200) {
+        println("Failed to fetch release info: HTTP ${connection.responseCode}")
+        return
+    }
+
+    val response = connection.inputStream.bufferedReader().use { it.readText() }
+    val mapper = jacksonObjectMapper()
+    val release: Release = mapper.readValue(response)
+
+    val latestVersion = release.tag_name
+    println("Latest version on GitHub: $latestVersion")
+
+    if (!isNewerVersion(latestVersion, localVersion)) {
+        println("You are on the latest update")
+        return
+    }
+
+    println("New update available!")
+
+    if (release.assets.isEmpty()) {
+        println("No downloadable assets found.")
+        return
+    }
+
+    val asset = release.assets[0]
+    println("Downloading: ${asset.name}")
+
+    val assetConnection = (URL(asset.browser_download_url).openConnection() as HttpURLConnection).apply {
+        requestMethod = "GET"
+        connectTimeout = 5000
+        readTimeout = 5000
+    }
+
+    assetConnection.inputStream.use { input ->
+        Files.copy(input, File(asset.name).toPath(), StandardCopyOption.REPLACE_EXISTING)
+    }
+
+    println("Downloaded asset: ${asset.name}")
+
+    // Update local version file
+    versionFile.writeText(latestVersion)
+    println("Updated local version to $latestVersion")
+
+    // Optional: print release notes
+    release.body?.let {
+        println("\nRelease Notes:\n$it")
+    }
+}
+
+fun isNewerVersion(latest: String, current: String): Boolean {
+    val latestParts = latest.removePrefix("v").split(".").map { it.toIntOrNull() ?: 0 }
+    val currentParts = current.removePrefix("v").split(".").map { it.toIntOrNull() ?: 0 }
+
+    for (i in 0 until maxOf(latestParts.size, currentParts.size)) {
+        val l = latestParts.getOrElse(i) { 0 }
+        val c = currentParts.getOrElse(i) { 0 }
+        if (l > c) return true
+        if (l < c) return false
+    }
+    return false
+}
