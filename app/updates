@@ -6,9 +6,9 @@ import java.nio.file.StandardCopyOption
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 
-// -----------------------------
+// ---------------------------------------------------------
 // Data Models
-// -----------------------------
+// ---------------------------------------------------------
 data class Release(
     val tag_name: String,
     val body: String?,
@@ -20,9 +20,9 @@ data class Asset(
     val name: String
 )
 
-// -----------------------------
-// Main Entry
-// -----------------------------
+// ---------------------------------------------------------
+// Entry Point
+// ---------------------------------------------------------
 fun main() {
     val versionFile = File("app/update")
     val localVersion = readLocalVersion(versionFile)
@@ -36,7 +36,8 @@ fun main() {
     println("Latest version on GitHub: $latestVersion")
 
     if (!isNewerVersion(latestVersion, localVersion)) {
-        println("You are on the latest update ($localVersion)")
+        println("v$localVersion — No update available")
+        println("You are on the latest update")
         return
     }
 
@@ -56,9 +57,9 @@ fun main() {
     }
 }
 
-// -----------------------------
+// ---------------------------------------------------------
 // Version Handling
-// -----------------------------
+// ---------------------------------------------------------
 fun readLocalVersion(file: File): String {
     return if (file.exists()) file.readText().trim() else "0.0.0"
 }
@@ -76,9 +77,9 @@ fun isNewerVersion(latest: String, current: String): Boolean {
     return false
 }
 
-// -----------------------------
+// ---------------------------------------------------------
 // GitHub API
-// -----------------------------
+// ---------------------------------------------------------
 fun fetchLatestRelease(): Release? {
     val apiUrl = "https://api.github.com/repos/OuterTune/OuterTune/releases/latest"
 
@@ -104,9 +105,9 @@ fun fetchLatestRelease(): Release? {
     }
 }
 
-// -----------------------------
+// ---------------------------------------------------------
 // Downloading
-// -----------------------------
+// ---------------------------------------------------------
 fun downloadAsset(asset: Asset): Boolean {
     return try {
         val connection = (URL(asset.browser_download_url).openConnection() as HttpURLConnection).apply {
